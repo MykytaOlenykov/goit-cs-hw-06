@@ -3,16 +3,13 @@ import os
 from pathlib import Path
 import signal
 import socket
-import threading
 import logging
 from dotenv import load_dotenv
-
+import threading
 
 from socket_srv import socket_server
 
 WEB_DIR = "./front"
-
-server_running = True
 
 logging.basicConfig(
     filename="server.log",
@@ -59,35 +56,26 @@ class RequestHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers["Content-Length"])
             data = self.rfile.read(content_length)
 
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.connect(("localhost", PORT2))
-                sock.sendall(data)
+            threading.Thread(
+                target=self.send_data_to_socket_server, args=(data,)
+            ).start()
 
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"Data sent to socket server")
 
-
-def run_server(port):
-    server_address = ("", port)
-    httpd = HTTPServer(server_address, RequestHandler)
-
-    try:
-        print(f"Starting server on port {port}...")
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        logging.error("Server stoping...")
-        httpd.shutdown()
+    def send_data_to_socket_server(self, data):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect(("localhost", PORT2))
+            sock.sendall(data)
 
 
 def stop_servers(signum, frame):
-    global server_running
     print("Stopping servers...")
-    server_running = False
+    os._exit(0)  # Force exit
 
 
 signal.signal(signal.SIGINT, stop_servers)
-
 
 if __name__ == "__main__":
     ENV_PATH = Path(__file__).parent / ".env"
@@ -95,8 +83,17 @@ if __name__ == "__main__":
 
     PORT = int(os.getenv("HTTP_SERVER_PORT"))
     PORT2 = int(os.getenv("SOCKET_SERVER_PORT"))
-    web_thread = threading.Thread(target=run_server, args=(PORT,))
+
+    web_thread = threading.Thread(target=socket_server, args=(PORT2,))
     web_thread.daemon = True
     web_thread.start()
 
-    socket_server(PORT2)
+    server_address = ("", PORT)
+    httpd = HTTPServer(server_address, RequestHandler)
+
+    try:
+        print(f"Starting server on port {PORT}...")
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        logging.error("Server stopping...")
+        os._exit(0)  # Force exit
