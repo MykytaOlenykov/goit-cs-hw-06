@@ -3,10 +3,11 @@ import os
 from pathlib import Path
 import signal
 import socket
-import threading
 import logging
 from dotenv import load_dotenv
 from socket_srv import socket_server
+from multiprocessing import Process
+
 
 WEB_DIR = "./front"
 
@@ -74,7 +75,7 @@ def run_server(port):
         print(f"Starting server on port {port}...")
         httpd.serve_forever()
     except KeyboardInterrupt:
-        logging.error("Server stoping...")
+        logging.error("Server stopping...")
         httpd.shutdown()
 
 
@@ -93,8 +94,8 @@ if __name__ == "__main__":
 
     PORT = int(os.getenv("HTTP_SERVER_PORT"))
     PORT2 = int(os.getenv("SOCKET_SERVER_PORT"))
-    web_thread = threading.Thread(target=run_server, args=(PORT,))
-    web_thread.daemon = True
-    web_thread.start()
+    web_process = Process(target=run_server, args=(PORT,))
+    web_process.daemon = True
+    web_process.start()
 
     socket_server(PORT2)
