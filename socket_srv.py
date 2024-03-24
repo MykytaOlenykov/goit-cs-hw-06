@@ -1,12 +1,12 @@
 import socket
 import os
 from pathlib import Path
-import threading
 from datetime import datetime
 import logging
 import urllib.parse
 from dotenv import load_dotenv
 import pymongo
+from multiprocessing import Process
 
 from connect_db import create_connect
 
@@ -63,8 +63,8 @@ def socket_server(port):
         print(f"Starting socket server on port {port}")
         while server_running:
             conn, addr = server.accept()
-            thread = threading.Thread(target=handle_client, args=(conn, addr))
-            thread.start()
+            p = Process(target=handle_client, args=(conn, addr))
+            p.start()
     except KeyboardInterrupt:
         logging.error("Server stoping...")
         server_running = False
